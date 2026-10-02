@@ -1,4 +1,4 @@
-```python
+
 import streamlit as st
 import pandas as pd
 from datetime import date
@@ -615,4 +615,3 @@ if submitted:
                 "Unknown error"
             )
         )
-```
