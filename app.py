@@ -1,3 +1,4 @@
+```python
 import streamlit as st
 import pandas as pd
 from datetime import date
@@ -13,32 +14,51 @@ from github_storage import (
     list_attendance_files
 )
 
+
+# ============================================================
+# PAGE CONFIGURATION
+# ============================================================
+
 st.set_page_config(
     page_title="Seminar Attendance",
     page_icon="🎓",
     layout="centered"
 )
 
+
+# ============================================================
+# CUSTOM CSS
+# ============================================================
+
 st.markdown("""
 <style>
-.main-title{
-    font-size:34px;
-    font-weight:700;
-    margin-bottom:0;
+
+.main-title {
+    font-size: 34px;
+    font-weight: 700;
+    margin-bottom: 0;
 }
-.company-name{
-    font-size:18px;
-    color:#555;
-    margin-bottom:25px;
+
+.company-name {
+    font-size: 18px;
+    color: #555;
+    margin-bottom: 25px;
 }
-.success-box{
-    padding:15px;
-    border-radius:10px;
-    background:#e8f5e9;
-    border:1px solid #81c784;
+
+.success-box {
+    padding: 15px;
+    border-radius: 10px;
+    background: #e8f5e9;
+    border: 1px solid #81c784;
 }
+
 </style>
 """, unsafe_allow_html=True)
+
+
+# ============================================================
+# HEADER
+# ============================================================
 
 st.markdown(
     '<div class="main-title">🎓 Seminar Attendance</div>',
@@ -52,15 +72,18 @@ st.markdown(
 
 
 # ============================================================
-# GITHUB CONFIGURATION
+# GITHUB CONFIGURATION CHECK
 # ============================================================
 
 if not github_configured():
+
     st.error(
-        "GitHub storage is not configured. Configure "
-        "GITHUB_OWNER, GITHUB_REPO, GITHUB_BRANCH, GITHUB_TOKEN, "
-        "ATTENDANCE_DIR and ADMIN_PASSWORD in Streamlit Cloud Secrets."
+        "GitHub storage is not configured. "
+        "Configure GITHUB_OWNER, GITHUB_REPO, GITHUB_BRANCH, "
+        "GITHUB_TOKEN, ATTENDANCE_DIR and ADMIN_PASSWORD "
+        "in Streamlit Cloud Secrets."
     )
+
     st.stop()
 
 
@@ -89,13 +112,18 @@ if admin_mode == "1":
         type="password"
     )
 
-    admin_password = st.secrets.get("ADMIN_PASSWORD", "")
+    admin_password = st.secrets.get(
+        "ADMIN_PASSWORD",
+        ""
+    )
 
     if not password:
+
         st.info("Enter the admin password.")
         st.stop()
 
     if password != admin_password:
+
         st.error("Invalid admin password.")
         st.stop()
 
@@ -104,10 +132,12 @@ if admin_mode == "1":
     st.divider()
 
     # ========================================================
-    # CREATE SEMINAR ATTENDANCE LINK
+    # CREATE SEMINAR LINK
     # ========================================================
 
-    st.subheader("Create Seminar Attendance Link")
+    st.subheader(
+        "Create Seminar Attendance Link"
+    )
 
     seminar_name = st.text_input(
         "Seminar Name",
@@ -130,10 +160,15 @@ if admin_mode == "1":
         use_container_width=True
     ):
 
-        if not seminar_name.strip() or not college_name.strip():
+        if (
+            not seminar_name.strip()
+            or not college_name.strip()
+        ):
+
             st.error(
                 "Please enter seminar name and college name."
             )
+
             st.stop()
 
         query = urlencode({
@@ -143,14 +178,17 @@ if admin_mode == "1":
         })
 
         app_url = (
-            st.secrets.get("APP_URL", "")
+            st.secrets
+            .get("APP_URL", "")
             .strip()
             .rstrip("/")
         )
 
         if not app_url:
+
             st.warning(
-                "APP_URL is not configured in Streamlit Secrets."
+                "APP_URL is not configured in "
+                "Streamlit Secrets."
             )
 
             app_url = st.text_input(
@@ -160,18 +198,28 @@ if admin_mode == "1":
 
         if app_url:
 
-            attendance_url = f"{app_url}/?{query}"
+            attendance_url = (
+                f"{app_url}/?{query}"
+            )
 
-            st.success("Attendance link generated.")
+            st.success(
+                "Attendance link generated."
+            )
 
             st.text_input(
                 "Student Attendance URL",
                 value=attendance_url
             )
 
+            # ------------------------------------------------
+            # QR CODE
+            # ------------------------------------------------
+
             st.markdown("### QR Code")
 
-            qr = qrcode.make(attendance_url)
+            qr = qrcode.make(
+                attendance_url
+            )
 
             buffer = BytesIO()
 
@@ -200,7 +248,9 @@ if admin_mode == "1":
 
     st.divider()
 
-    st.subheader("📊 Attendance Records")
+    st.subheader(
+        "📊 Attendance Records"
+    )
 
     try:
 
@@ -221,12 +271,18 @@ if admin_mode == "1":
 
             if selected_file:
 
-                df = read_attendance(selected_file)
+                df = read_attendance(
+                    selected_file
+                )
 
-                if df is not None and not df.empty:
+                if (
+                    df is not None
+                    and not df.empty
+                ):
 
                     st.write(
-                        f"Total Attendance: **{len(df)}**"
+                        f"Total Attendance: "
+                        f"**{len(df)}**"
                     )
 
                     st.dataframe(
@@ -240,7 +296,10 @@ if admin_mode == "1":
                         data=df.to_csv(
                             index=False
                         ).encode("utf-8"),
-                        file_name=selected_file.split("/")[-1],
+                        file_name=(
+                            selected_file
+                            .split("/")[-1]
+                        ),
                         mime="text/csv",
                         use_container_width=True,
                     )
@@ -264,14 +323,20 @@ if admin_mode == "1":
 # VALIDATE SEMINAR LINK
 # ============================================================
 
-if not seminar or not seminar_date or not college:
+if (
+    not seminar
+    or not seminar_date
+    or not college
+):
 
     st.warning(
-        "The organizer has not provided a valid seminar attendance link."
+        "The organizer has not provided a valid "
+        "seminar attendance link."
     )
 
     st.info(
-        "A valid seminar link must contain seminar, date and college parameters."
+        "A valid seminar link must contain "
+        "seminar, date and college parameters."
     )
 
     st.code(
@@ -297,11 +362,12 @@ st.markdown(
 
 st.divider()
 
-st.subheader("Mark Attendance")
+st.subheader(
+    "📝 Student Attendance"
+)
 
 st.write(
-    "Enter student details below. "
-    "You can enter multiple students from the same device."
+    "Please enter your details below to mark your attendance."
 )
 
 
@@ -311,120 +377,80 @@ st.write(
 
 with st.form("attendance_form"):
 
-    number_of_students = st.number_input(
-        "Number of Students",
-        min_value=1,
-        max_value=20,
-        value=1,
-        step=1
+    # --------------------------------------------------------
+    # STUDENT NAME
+    # --------------------------------------------------------
+
+    student_name = st.text_input(
+        "Student Name *",
+        placeholder="Enter your full name"
     )
 
-    entries = []
+    # --------------------------------------------------------
+    # MOBILE NUMBER
+    # --------------------------------------------------------
 
-    for i in range(int(number_of_students)):
+    mobile_number = st.text_input(
+        "Mobile Number *",
+        placeholder="10-digit mobile number"
+    )
 
-        st.markdown(
-            f"### Student {i + 1}"
-        )
+    # --------------------------------------------------------
+    # EMAIL ADDRESS
+    # --------------------------------------------------------
 
-        # ----------------------------------------------------
-        # BASIC DETAILS
-        # ----------------------------------------------------
+    email_address = st.text_input(
+        "Email Address *",
+        placeholder="student@example.com"
+    )
 
-        c1, c2 = st.columns(2)
+    # --------------------------------------------------------
+    # CURRENT YEAR
+    # --------------------------------------------------------
 
-        with c1:
+    current_year = st.selectbox(
+        "Current Year *",
+        [
+            "1st Year",
+            "2nd Year",
+            "3rd Year",
+            "4th Year",
+            "5th Year",
+            "Other"
+        ]
+    )
 
-            name = st.text_input(
-                "Student Name *",
-                key=f"name_{i}",
-                placeholder="Full Name"
-            )
+    # --------------------------------------------------------
+    # SEMESTER
+    # --------------------------------------------------------
 
-        with c2:
+    semester = st.selectbox(
+        "Semester *",
+        [
+            "Semester 1",
+            "Semester 2",
+            "Semester 3",
+            "Semester 4",
+            "Semester 5",
+            "Semester 6",
+            "Semester 7",
+            "Semester 8",
+            "Other"
+        ]
+    )
 
-            roll = st.text_input(
-                "Enrollment / Roll Number *",
-                key=f"roll_{i}",
-                placeholder="Roll Number"
-            )
+    # --------------------------------------------------------
+    # BRANCH
+    # --------------------------------------------------------
 
-        # ----------------------------------------------------
-        # CONTACT DETAILS
-        # ----------------------------------------------------
+    branch = st.text_input(
+        "Branch / Department *",
+        placeholder="Computer Science & Engineering"
+    )
 
-        c1, c2 = st.columns(2)
-
-        with c1:
-
-            mobile = st.text_input(
-                "Mobile Number *",
-                key=f"mobile_{i}",
-                placeholder="10-digit mobile number"
-            )
-
-        with c2:
-
-            email = st.text_input(
-                "Email Address *",
-                key=f"email_{i}",
-                placeholder="student@example.com"
-            )
-
-        # ----------------------------------------------------
-        # ACADEMIC DETAILS
-        # ----------------------------------------------------
-
-        c1, c2 = st.columns(2)
-
-        with c1:
-
-            current_year = st.selectbox(
-                "Current Year *",
-                [
-                    "1st Year",
-                    "2nd Year",
-                    "3rd Year",
-                    "4th Year",
-                    "5th Year",
-                    "Other"
-                ],
-                key=f"year_{i}"
-            )
-
-        with c2:
-
-            semester = st.selectbox(
-                "Semester *",
-                [
-                    "Semester 1",
-                    "Semester 2",
-                    "Semester 3",
-                    "Semester 4",
-                    "Semester 5",
-                    "Semester 6",
-                    "Semester 7",
-                    "Semester 8",
-                    "Other"
-                ],
-                key=f"semester_{i}"
-            )
-
-        branch = st.text_input(
-            "Branch / Department *",
-            key=f"branch_{i}",
-            placeholder="Computer Science & Engineering"
-        )
-
-        entries.append({
-            "student_name": name.strip(),
-            "enrollment_number": roll.strip(),
-            "mobile_number": mobile.strip(),
-            "email_address": email.strip(),
-            "current_year": current_year.strip(),
-            "semester": semester.strip(),
-            "branch": branch.strip()
-        })
+    # --------------------------------------------------------
+    # SUBMIT
+    # --------------------------------------------------------
 
     submitted = st.form_submit_button(
         "Submit Attendance",
@@ -434,7 +460,7 @@ with st.form("attendance_form"):
 
 
 # ============================================================
-# SUBMIT ATTENDANCE
+# PROCESS ATTENDANCE
 # ============================================================
 
 if submitted:
@@ -443,26 +469,34 @@ if submitted:
     # REQUIRED FIELD VALIDATION
     # --------------------------------------------------------
 
-    valid = []
-
-    for student in entries:
-
-        if all([
-            student["student_name"],
-            student["enrollment_number"],
-            student["mobile_number"],
-            student["email_address"],
-            student["current_year"],
-            student["semester"],
-            student["branch"]
-        ]):
-
-            valid.append(student)
-
-    if len(valid) != len(entries):
+    if not student_name.strip():
 
         st.error(
-            "Please complete all required fields for every student."
+            "Please enter your name."
+        )
+
+        st.stop()
+
+    if not mobile_number.strip():
+
+        st.error(
+            "Please enter your mobile number."
+        )
+
+        st.stop()
+
+    if not email_address.strip():
+
+        st.error(
+            "Please enter your email address."
+        )
+
+        st.stop()
+
+    if not branch.strip():
+
+        st.error(
+            "Please enter your branch / department."
         )
 
         st.stop()
@@ -471,37 +505,21 @@ if submitted:
     # MOBILE VALIDATION
     # --------------------------------------------------------
 
-    invalid_mobile = []
+    clean_mobile = re.sub(
+        r"\D",
+        "",
+        mobile_number
+    )
 
-    for student in valid:
-
-        mobile = re.sub(
-            r"\D",
-            "",
-            student["mobile_number"]
-        )
-
-        if not re.fullmatch(
-            r"[6-9]\d{9}",
-            mobile
-        ):
-            invalid_mobile.append(
-                f"{student['student_name']} ({student['mobile_number']})"
-            )
-
-    if invalid_mobile:
+    if not re.fullmatch(
+        r"[6-9]\d{9}",
+        clean_mobile
+    ):
 
         st.error(
-            "Invalid mobile number found."
+            "Please enter a valid 10-digit Indian "
+            "mobile number."
         )
-
-        with st.expander("View invalid mobile numbers"):
-
-            for item in invalid_mobile:
-
-                st.write(
-                    f"• {item}"
-                )
 
         st.stop()
 
@@ -509,68 +527,23 @@ if submitted:
     # EMAIL VALIDATION
     # --------------------------------------------------------
 
-    invalid_email = []
+    email_pattern = (
+        r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+    )
 
-    email_pattern = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
-
-    for student in valid:
-
-        if not re.match(
-            email_pattern,
-            student["email_address"]
-        ):
-
-            invalid_email.append(
-                f"{student['student_name']} "
-                f"({student['email_address']})"
-            )
-
-    if invalid_email:
+    if not re.match(
+        email_pattern,
+        email_address.strip()
+    ):
 
         st.error(
-            "Invalid email address found."
-        )
-
-        with st.expander("View invalid email addresses"):
-
-            for item in invalid_email:
-
-                st.write(
-                    f"• {item}"
-                )
-
-        st.stop()
-
-    # --------------------------------------------------------
-    # DUPLICATE CHECK WITHIN CURRENT SUBMISSION
-    # --------------------------------------------------------
-
-    rolls = [
-        x["enrollment_number"].lower()
-        for x in valid
-    ]
-
-    duplicates = {
-        x
-        for x in rolls
-        if rolls.count(x) > 1
-    }
-
-    if duplicates:
-
-        st.error(
-            "Duplicate enrollment / roll number found "
-            "in this submission."
-        )
-
-        st.write(
-            ", ".join(sorted(duplicates))
+            "Please enter a valid email address."
         )
 
         st.stop()
 
     # --------------------------------------------------------
-    # SAVE ATTENDANCE
+    # SEMINAR INFORMATION
     # --------------------------------------------------------
 
     info = {
@@ -579,91 +552,29 @@ if submitted:
         "college": college
     }
 
-    successful = []
-    duplicate = []
-    failed = []
-
-    for student in valid:
-
-        result = append_attendance(
-            info,
-            student["student_name"],
-            student["enrollment_number"],
-            student["mobile_number"],
-            student["email_address"],
-            student["current_year"],
-            student["semester"],
-            student["branch"]
-        )
-
-        if result["status"] == "success":
-
-            successful.append(student)
-
-        elif result["status"] == "duplicate":
-
-            duplicate.append(student)
-
-        else:
-
-            failed.append({
-                **student,
-                "error": result.get(
-                    "message",
-                    "Unknown error"
-                )
-            })
-
     # --------------------------------------------------------
-    # RESULT
+    # SAVE ATTENDANCE
     # --------------------------------------------------------
 
-    if successful:
+    result = append_attendance(
+        info,
+        student_name.strip(),
+        clean_mobile,
+        email_address.strip(),
+        current_year,
+        semester,
+        branch.strip()
+    )
+
+    # --------------------------------------------------------
+    # SUCCESS
+    # --------------------------------------------------------
+
+    if result["status"] == "success":
 
         st.success(
-            f"Attendance successfully recorded for "
-            f"{len(successful)} student(s)."
+            "Attendance successfully recorded."
         )
-
-    if duplicate:
-
-        st.warning(
-            f"{len(duplicate)} student(s) were already marked present."
-        )
-
-        with st.expander(
-            "View duplicate students"
-        ):
-
-            for x in duplicate:
-
-                st.write(
-                    f"• {x['student_name']} "
-                    f"({x['enrollment_number']})"
-                )
-
-    if failed:
-
-        st.error(
-            f"{len(failed)} student(s) could not be recorded."
-        )
-
-        with st.expander(
-            "View failed records"
-        ):
-
-            for x in failed:
-
-                st.write(
-                    f"• {x['student_name']} "
-                    f"({x['enrollment_number']})"
-                )
-
-                st.caption(
-                    x["error"]
-                )
-
-    if successful:
 
         st.balloons()
 
@@ -676,3 +587,32 @@ if submitted:
             """,
             unsafe_allow_html=True
         )
+
+    # --------------------------------------------------------
+    # DUPLICATE
+    # --------------------------------------------------------
+
+    elif result["status"] == "duplicate":
+
+        st.warning(
+            "Your attendance has already been recorded "
+            "for this seminar."
+        )
+
+    # --------------------------------------------------------
+    # ERROR
+    # --------------------------------------------------------
+
+    else:
+
+        st.error(
+            "Your attendance could not be recorded."
+        )
+
+        st.caption(
+            result.get(
+                "message",
+                "Unknown error"
+            )
+        )
+```
