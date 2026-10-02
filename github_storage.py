@@ -1,4 +1,4 @@
-```python
+
 import base64
 import io
 import re
@@ -570,4 +570,4 @@ def read_attendance(path):
     df, _ = read_csv_from_github(path)
 
     return df
-```
+
