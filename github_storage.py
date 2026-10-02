@@ -1,7 +1,9 @@
+```python
 import base64
 import io
 import re
 import time
+
 from datetime import datetime
 
 import pandas as pd
@@ -13,7 +15,7 @@ GITHUB_API = "https://api.github.com"
 
 
 # ============================================================
-# CONFIGURATION
+# GITHUB CONFIGURATION
 # ============================================================
 
 def github_configured():
@@ -26,8 +28,8 @@ def github_configured():
     ]
 
     return all(
-        bool(st.secrets.get(k, ""))
-        for k in required
+        bool(st.secrets.get(key, ""))
+        for key in required
     )
 
 
@@ -82,6 +84,10 @@ def sanitize_filename(value):
     ).strip("_")
 
 
+# ============================================================
+# ATTENDANCE FILE PATH
+# ============================================================
+
 def get_attendance_file_path(
     seminar_date,
     college
@@ -100,13 +106,13 @@ def get_attendance_file_path(
 
 def github_file_url(path):
 
-    c = get_config()
+    config = get_config()
 
     return (
         f"{GITHUB_API}/repos/"
-        f"{c['owner']}/"
-        f"{c['repo']}/contents/"
-        f"{path}?ref={c['branch']}"
+        f"{config['owner']}/"
+        f"{config['repo']}/contents/"
+        f"{path}?ref={config['branch']}"
     )
 
 
@@ -116,19 +122,19 @@ def github_file_url(path):
 
 def read_csv_from_github(path):
 
-    r = requests.get(
+    response = requests.get(
         github_file_url(path),
         headers=get_headers(),
         timeout=20
     )
 
-    if r.status_code == 404:
+    if response.status_code == 404:
 
         return pd.DataFrame(), None
 
-    r.raise_for_status()
+    response.raise_for_status()
 
-    data = r.json()
+    data = response.json()
 
     content = data.get(
         "content",
@@ -137,7 +143,10 @@ def read_csv_from_github(path):
 
     if not content:
 
-        return pd.DataFrame(), data.get("sha")
+        return (
+            pd.DataFrame(),
+            data.get("sha")
+        )
 
     decoded = base64.b64decode(
         content
@@ -145,7 +154,10 @@ def read_csv_from_github(path):
 
     if not decoded.strip():
 
-        return pd.DataFrame(), data.get("sha")
+        return (
+            pd.DataFrame(),
+            data.get("sha")
+        )
 
     return (
         pd.read_csv(
@@ -166,7 +178,7 @@ def write_csv_to_github(
     sha=None
 ):
 
-    c = get_config()
+    config = get_config()
 
     encoded = base64.b64encode(
         df.to_csv(
@@ -180,7 +192,7 @@ def write_csv_to_github(
             f"{path.split('/')[-1]}"
         ),
         "content": encoded,
-        "branch": c["branch"],
+        "branch": config["branch"],
     }
 
     if sha:
@@ -189,8 +201,8 @@ def write_csv_to_github(
 
     url = (
         f"{GITHUB_API}/repos/"
-        f"{c['owner']}/"
-        f"{c['repo']}/contents/"
+        f"{config['owner']}/"
+        f"{config['repo']}/contents/"
         f"{path}"
     )
 
@@ -209,7 +221,6 @@ def write_csv_to_github(
 def append_attendance(
     seminar_info,
     student_name,
-    enrollment_number,
     mobile_number,
     email_address,
     current_year,
@@ -226,10 +237,12 @@ def append_attendance(
 
         try:
 
-            df, sha = read_csv_from_github(path)
+            df, sha = read_csv_from_github(
+                path
+            )
 
             # ------------------------------------------------
-            # CSV COLUMNS
+            # EXPECTED CSV COLUMNS
             # ------------------------------------------------
 
             columns = [
@@ -238,7 +251,6 @@ def append_attendance(
                 "seminar_date",
                 "college",
                 "student_name",
-                "enrollment_number",
                 "mobile_number",
                 "email_address",
                 "current_year",
@@ -246,6 +258,10 @@ def append_attendance(
                 "branch",
                 "status"
             ]
+
+            # ------------------------------------------------
+            # CREATE NEW DATAFRAME
+            # ------------------------------------------------
 
             if df.empty:
 
@@ -257,8 +273,8 @@ def append_attendance(
             # BACKWARD COMPATIBILITY
             # ------------------------------------------------
 
-            # If an older attendance CSV exists,
-            # add the new columns automatically.
+            # If an older CSV exists, automatically
+            # add missing columns.
 
             for column in columns:
 
@@ -266,36 +282,111 @@ def append_attendance(
 
                     df[column] = ""
 
-            # Keep only the expected columns/order
+            # Remove old Enrollment / Roll Number
+            # column from the active structure.
+
+            if "enrollment_number" in df.columns:
+
+                df = df.drop(
+                    columns=["enrollment_number"]
+                )
+
+            # Ensure correct column order.
 
             df = df[columns]
 
             # ------------------------------------------------
-            # DUPLICATE CHECK
+            # NORMALIZE CURRENT VALUES
             # ------------------------------------------------
 
-            existing = (
-                df["enrollment_number"]
-                .astype(str)
-                .str.strip()
-                .str.lower()
-                .tolist()
-            )
-
-            current = (
-                str(enrollment_number)
+            current_mobile = (
+                str(mobile_number)
                 .strip()
                 .lower()
             )
 
-            if current in existing:
+            current_email = (
+                str(email_address)
+                .strip()
+                .lower()
+            )
 
-                return {
-                    "status": "duplicate"
-                }
+            current_date = (
+                str(seminar_info["date"])
+                .strip()
+            )
+
+            current_college = (
+                str(seminar_info["college"])
+                .strip()
+                .lower()
+            )
 
             # ------------------------------------------------
-            # NEW ATTENDANCE RECORD
+            # DUPLICATE CHECK
+            # ------------------------------------------------
+            #
+            # Duplicate is identified using:
+            #
+            # Mobile Number
+            # +
+            # Email Address
+            # +
+            # Seminar Date
+            # +
+            # College
+            #
+            # The same student can therefore attend
+            # another seminar on another date.
+            # ------------------------------------------------
+
+            if not df.empty:
+
+                existing_mobile = (
+                    df["mobile_number"]
+                    .astype(str)
+                    .str.strip()
+                    .str.lower()
+                )
+
+                existing_email = (
+                    df["email_address"]
+                    .astype(str)
+                    .str.strip()
+                    .str.lower()
+                )
+
+                existing_date = (
+                    df["seminar_date"]
+                    .astype(str)
+                    .str.strip()
+                )
+
+                existing_college = (
+                    df["college"]
+                    .astype(str)
+                    .str.strip()
+                    .str.lower()
+                )
+
+                duplicate_mask = (
+                    (existing_mobile == current_mobile)
+                    &
+                    (existing_email == current_email)
+                    &
+                    (existing_date == current_date)
+                    &
+                    (existing_college == current_college)
+                )
+
+                if duplicate_mask.any():
+
+                    return {
+                        "status": "duplicate"
+                    }
+
+            # ------------------------------------------------
+            # CREATE ATTENDANCE RECORD
             # ------------------------------------------------
 
             record = {
@@ -304,15 +395,19 @@ def append_attendance(
                     "%Y-%m-%d %H:%M:%S"
                 ),
 
-                "seminar": seminar_info["seminar"],
+                "seminar": seminar_info[
+                    "seminar"
+                ],
 
-                "seminar_date": seminar_info["date"],
+                "seminar_date": seminar_info[
+                    "date"
+                ],
 
-                "college": seminar_info["college"],
+                "college": seminar_info[
+                    "college"
+                ],
 
                 "student_name": student_name,
-
-                "enrollment_number": enrollment_number,
 
                 "mobile_number": mobile_number,
 
@@ -324,8 +419,12 @@ def append_attendance(
 
                 "branch": branch,
 
-                "status": "Present",
+                "status": "Present"
             }
+
+            # ------------------------------------------------
+            # APPEND RECORD
+            # ------------------------------------------------
 
             new_df = pd.concat(
                 [
@@ -345,7 +444,9 @@ def append_attendance(
                 sha
             )
 
-            # Successful GitHub update
+            # ------------------------------------------------
+            # SUCCESS
+            # ------------------------------------------------
 
             if response.status_code in (
                 200,
@@ -356,7 +457,9 @@ def append_attendance(
                     "status": "success"
                 }
 
-            # Concurrent update
+            # ------------------------------------------------
+            # CONCURRENT UPDATE
+            # ------------------------------------------------
 
             if response.status_code == 409:
 
@@ -365,6 +468,10 @@ def append_attendance(
                 )
 
                 continue
+
+            # ------------------------------------------------
+            # OTHER GITHUB ERROR
+            # ------------------------------------------------
 
             return {
                 "status": "error",
@@ -375,7 +482,7 @@ def append_attendance(
                 )
             }
 
-        except Exception as e:
+        except Exception as error:
 
             if attempt < 3:
 
@@ -387,8 +494,12 @@ def append_attendance(
 
             return {
                 "status": "error",
-                "message": str(e)
+                "message": str(error)
             }
+
+    # ========================================================
+    # ALL RETRIES FAILED
+    # ========================================================
 
     return {
         "status": "error",
@@ -405,39 +516,42 @@ def append_attendance(
 
 def list_attendance_files():
 
-    c = get_config()
+    config = get_config()
 
-    path = c["attendance_dir"].strip("/")
+    path = (
+        config["attendance_dir"]
+        .strip("/")
+    )
 
     url = (
         f"{GITHUB_API}/repos/"
-        f"{c['owner']}/"
-        f"{c['repo']}/contents/"
-        f"{path}?ref={c['branch']}"
+        f"{config['owner']}/"
+        f"{config['repo']}/contents/"
+        f"{path}?ref={config['branch']}"
     )
 
-    r = requests.get(
+    response = requests.get(
         url,
         headers=get_headers(),
         timeout=20
     )
 
-    if r.status_code == 404:
+    if response.status_code == 404:
 
         return []
 
-    r.raise_for_status()
+    response.raise_for_status()
 
-    items = r.json()
+    items = response.json()
 
     return sorted(
         [
-            x["path"]
-            for x in items
+            item["path"]
+            for item in items
             if (
-                x.get("type") == "file"
+                item.get("type") == "file"
                 and
-                x.get(
+                item.get(
                     "name",
                     ""
                 ).lower().endswith(".csv")
@@ -456,3 +570,4 @@ def read_attendance(path):
     df, _ = read_csv_from_github(path)
 
     return df
+```
